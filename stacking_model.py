@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Cargar y preparar los datos (similar al archivo anterior)
-df = pd.read_excel('Project3CreditModels/Data/creditcards_default.xls')
+df = pd.read_excel('Data/creditcards_default.xls')
 df = df.iloc[1:].reset_index(drop=True)
 df = df.drop(['Unnamed: 0'], axis=1)
 

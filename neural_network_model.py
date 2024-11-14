@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Cargar y preparar los datos
-df = pd.read_excel('Project3CreditModels/Data/creditcards_default.xls')
+df = pd.read_excel('Data/creditcards_default.xls')
 df = df.iloc[1:].reset_index(drop=True)
 
 # Convertir columnas a tipo numérico
@@ -32,17 +32,26 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 smote = SMOTE(random_state=42)
 X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
 
-# Crear pipeline con la red neuronal
+# Crear pipeline con la red neuronal optimizada
 pipeline = Pipeline([
     ('scaler', StandardScaler()),
     ('classifier', MLPClassifier(
-        hidden_layer_sizes=(64, 32),  # Dos capas ocultas de 100 y 50 neuronas
-        activation='relu',              # Función de activación ReLU
-        solver='adam',                  # Optimizador Adam
-        max_iter=500,                 # Máximo número de iteraciones
+        hidden_layer_sizes=(256, 128, 64, 32),  # Arquitectura más profunda
+        activation='relu',                # Función de activación ELU para mejor gradiente
+        solver='adam',                  
+        max_iter=500,                   # Más iteraciones para mejor convergencia
         random_state=42,
-        learning_rate_init=0.01,      # Tasa de aprendizaje inicial
-        batch_size=32                  # Tamaño del batch
+        learning_rate_init=0.0005,      # Learning rate más pequeño para mejor precisión
+        learning_rate='adaptive',       # Tasa de aprendizaje adaptativa
+        batch_size=128,                 # Batch size optimizado para M1
+        early_stopping=True,            
+        validation_fraction=0.15,       # Más datos para validación
+        n_iter_no_change=15,           # Más paciencia para encontrar mejor solución
+        alpha=0.0005,                  # Regularización L2 ajustada
+        momentum=0.9,                  # Momentum para mejor convergencia
+        nesterovs_momentum=True,       # Usar momentum de Nesterov
+        power_t=0.5,                   # Tasa de decaimiento para learning rate
+        tol=1e-5,                      # Tolerancia más estricta
     ))
 ])
 

@@ -1,141 +1,124 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc, accuracy_score, precision_score, recall_score, f1_score
-from sklearn.pipeline import Pipeline
-from imblearn.over_sampling import SMOTE
+from scipy import stats
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_curve, auc, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from imblearn.over_sampling import SMOTE
+from sklearn.metrics import f1_score
 
-# Cargar y preparar los datos
-df = pd.read_excel('Project3CreditModels/Data/creditcards_default.xls')
-df = df.iloc[1:].reset_index(drop=True)
+# Definir la función antes de su uso
+def evaluar_modelo_mejorado(X, y, nombre_dataset):
+    # Dividir los datos en conjuntos de entrenamiento y prueba
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+    
+    # Aplicar SMOTE para balancear las clases
+    smote = SMOTE(random_state=42)
+    X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
+    
+    # Crear y entrenar el modelo Random Forest
+    modelo = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=10,
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    modelo.fit(X_train_balanced, y_train_balanced)
+    
+    # Evaluar el modelo en el conjunto de prueba
+    y_pred_test = modelo.predict(X_test)
+    y_pred_proba_test = modelo.predict_proba(X_test)[:, 1]
+    
+    print(f"\nReporte de Clasificación - {nombre_dataset} (Test)")
+    print(classification_report(y_test, y_pred_test))
+    
+    # Curva ROC para el conjunto de prueba
+    fpr, tpr, _ = roc_curve(y_test, y_pred_proba_test)
+    roc_auc = auc(fpr, tpr)
+    
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('Tasa de Falsos Positivos')
+    plt.ylabel('Tasa de Verdaderos Positivos')
+    plt.title(f'Curva ROC - {nombre_dataset} (Test)')
+    plt.legend(loc="lower right")
+
+    # Matriz de Confusión para el conjunto de prueba
+    plt.subplot(1, 2, 2)
+    cm = confusion_matrix(y_test, y_pred_test)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Matriz de Confusión - {nombre_dataset} (Test)')
+    plt.ylabel('Real')
+    plt.xlabel('Predicción')
+    plt.tight_layout()
+    plt.show()
+
+    return modelo
+
+# Leer y preparar el dataset de Taiwan
+df_taiwan = pd.read_excel('Data/creditcards_default.xls')
+df_taiwan = df_taiwan.iloc[1:].reset_index(drop=True)
+df_taiwan = df_taiwan.drop(['Unnamed: 0'], axis=1)
 
 # Convertir columnas a tipo numérico
-for col in df.columns:
-    df[col] = pd.to_numeric(df[col], errors='coerce')
+for col in df_taiwan.columns:
+    df_taiwan[col] = pd.to_numeric(df_taiwan[col], errors='coerce')
 
-# Eliminar columnas innecesarias
-df = df.drop(['Unnamed: 0'], axis=1)
-
-# Preparar X e y
-X = df.drop(['Y'], axis=1)
-y = df['Y']
-
-# Dividir los datos
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-# Aplicar SMOTE para balancear las clases
-smote = SMOTE(random_state=42)
-X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
-
-# Crear pipeline con escalado y modelo
-pipeline = Pipeline([
-    ('scaler', StandardScaler()),
-    ('classifier', LogisticRegression())
-])
-
-# Definir parámetros para búsqueda
-param_grid = {
-    'classifier__C': [0.001, 0.01, 0.1, 1, 10, 100],
-    'classifier__penalty': ['l1', 'l2'],
-    'classifier__solver': ['liblinear', 'saga'],
-    'classifier__class_weight': ['balanced', None]
-}
-
-# Realizar búsqueda de hiperparámetros
-grid_search = GridSearchCV(
-    pipeline,
-    param_grid,
-    cv=5,
-    scoring='f1',
-    n_jobs=-1,
-    verbose=1
+# Dividir los datos en entrenamiento y holdout (para evaluar en datos no vistos)
+X_taiwan = df_taiwan.drop('Y', axis=1)
+y_taiwan = df_taiwan['Y']
+X_taiwan_train, X_taiwan_holdout, y_taiwan_train, y_taiwan_holdout = train_test_split(
+    X_taiwan, y_taiwan, test_size=0.2, random_state=42
 )
 
-# Entrenar modelo con los mejores parámetros
-print("Entrenando modelo...")
-grid_search.fit(X_train_balanced, y_train_balanced)
+print("Tamaño del dataset de entrenamiento:", len(X_taiwan_train))
+print("Tamaño del dataset holdout:", len(X_taiwan_holdout))
+print("\nDistribución de clases en entrenamiento:", y_taiwan_train.value_counts(normalize=True))
+print("Distribución de clases en holdout:", y_taiwan_holdout.value_counts(normalize=True))
 
-# Obtener mejor modelo
-best_model = grid_search.best_estimator_
-print("\nMejores parámetros:", grid_search.best_params_)
+# Evaluar modelo con datos de entrenamiento de Taiwan
+modelo_taiwan = evaluar_modelo_mejorado(X_taiwan_train, y_taiwan_train, "Dataset Taiwan Entrenamiento")
 
-# Evaluar modelo
-y_pred = best_model.predict(X_test)
-y_pred_proba = best_model.predict_proba(X_test)[:, 1]
+# Evaluar el mismo modelo con datos holdout de Taiwan
+print("\nEvaluación con datos no vistos (Holdout - Taiwan):")
+y_pred_holdout = modelo_taiwan.predict(X_taiwan_holdout)
+y_pred_proba_holdout = modelo_taiwan.predict_proba(X_taiwan_holdout)[:, 1]
 
-# Imprimir métricas
-print("\nReporte de clasificación:")
-print(classification_report(y_test, y_pred))
+# Calcular métricas para holdout
+print("\nReporte de Clasificación - Dataset Taiwan Holdout")
+print(classification_report(y_taiwan_holdout, y_pred_holdout))
 
-# Calcular y mostrar curva ROC
-fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+# Graficar resultados del holdout
+plt.figure(figsize=(15, 5))
+
+# AUC-ROC para holdout
+fpr, tpr, _ = roc_curve(y_taiwan_holdout, y_pred_proba_holdout)
 roc_auc = auc(fpr, tpr)
 
-plt.figure(figsize=(10, 6))
+plt.subplot(1, 2, 1)
 plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.xlabel('Tasa de Falsos Positivos')
 plt.ylabel('Tasa de Verdaderos Positivos')
-plt.title('Curva ROC')
+plt.title('Curva ROC - Dataset Taiwan Holdout')
 plt.legend(loc="lower right")
-plt.show()
 
-# Matriz de confusión con porcentajes
-cm = confusion_matrix(y_test, y_pred)
-cm_percent = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] * 100
+# Matriz de Confusión para holdout
+plt.subplot(1, 2, 2)
+cm = confusion_matrix(y_taiwan_holdout, y_pred_holdout)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title('Matriz de Confusión - Dataset Taiwan Holdout')
+plt.ylabel('Real')
+plt.xlabel('Predicción')
 
-plt.figure(figsize=(10, 8))
-sns.heatmap(cm_percent, annot=True, fmt='.1f', cmap='Blues')
-plt.title('Matriz de Confusión (Porcentajes)')
-plt.ylabel('Valor Real')
-plt.xlabel('Valor Predicho')
-plt.show()
-
-# Importancia de variables
-nombres_variables = ['Límite de Crédito', 'Sexo', 'Educación', 'Estado Civil', 'Edad',
-                    'PAY_0', 'PAY_2', 'PAY_3', 'PAY_4', 'PAY_5', 'PAY_6',
-                    'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6',
-                    'PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
-
-coef = best_model.named_steps['classifier'].coef_[0]
-importancia = pd.DataFrame({
-    'Variable': nombres_variables,
-    'Importancia': np.abs(coef)
-})
-importancia = importancia.sort_values('Importancia', ascending=False)
-
-plt.figure(figsize=(12, 6))
-sns.barplot(data=importancia.head(10), x='Importancia', y='Variable')
-plt.title('Top 10 Variables más Importantes')
 plt.tight_layout()
 plt.show()
-
-# Calcular métricas
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred)
-recall = recall_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-
-print("\n=== MÉTRICAS FINALES DEL MODELO ===")
-print(f"Accuracy (Exactitud): {accuracy:.4f} ({accuracy*100:.2f}%)")
-print(f"Precision: {precision:.4f} ({precision*100:.2f}%)")
-print(f"Recall (Sensibilidad): {recall:.4f} ({recall*100:.2f}%)")
-print(f"F1-Score: {f1:.4f} ({f1*100:.2f}%)")
-
-# Calcular métricas específicas para cada clase
-print("\n=== PREDICCIONES POR CLASE ===")
-print("Clase 0 (No Default):")
-print(f"Accuracy: {accuracy_score(y_test[y_test==0], y_pred[y_test==0]):.4f}")
-print("Clase 1 (Default):")
-print(f"Accuracy: {accuracy_score(y_test[y_test==1], y_pred[y_test==1]):.4f}")
-
-# Validación cruzada para ver la estabilidad del modelo
-cv_scores = cross_val_score(best_model, X, y, cv=5, scoring='accuracy')
-print("\n=== VALIDACIÓN CRUZADA ===")
-print(f"Accuracy promedio en CV: {cv_scores.mean():.4f} (+/- {cv_scores.std()*2:.4f})")
