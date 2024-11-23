@@ -97,26 +97,28 @@ class ExploratoryDataAnalysis:
         print(f"\n{'='*50}\nData statistics...\n{'='*50}")
 
         try:
+            numeric_data = self.data[self.number_columns]
+
             print(f"\nMean:\n")
-            print(self.number_columns.mean())
+            print(numeric_data.mean())
 
             print(f"\n{'-'*50}\n\nMedian:\n")
-            print(self.number_columns.median())
+            print(numeric_data.median())
 
             print(f"\n{'-'*50}\n\nMode:\n")
-            print(self.number_columns.mode().iloc[0])
+            print(numeric_data.mode().iloc[0])
 
             print(f"\n{'-'*50}\n\nMinimum:\n")
-            print(self.number_columns.min())
+            print(numeric_data.min())
 
             print(f"\n{'-'*50}\n\nMaximum:\n")
-            print(self.number_columns.max())
+            print(numeric_data.max())
 
             print(f"\n{'-'*50}\n\nVariance:\n")
-            print(self.number_columns.var())
+            print(numeric_data.var())
 
             print(f"\n{'-'*50}\n\nStandard Deviation:\n")
-            print(self.number_columns.std())
+            print(numeric_data.std())
 
         except Exception as e:
             print(f"\nError during the data statistics: {e}")
@@ -199,8 +201,10 @@ class ExploratoryDataAnalysis:
         print(f"\n{'='*50}\nCorrelation matrix...\n{'='*50}")
 
         try:
+            numeric_data = self.data[self.number_columns]
+
             plt.figure(figsize=(12, 8))
-            sns.heatmap(self.number_columns.corr(), annot=True, cmap='coolwarm', vmin=-1, vmax=1, center=0, fmt='.2f')
+            sns.heatmap(numeric_data.corr(), annot=True, cmap='coolwarm', vmin=-1, vmax=1, center=0, fmt='.2f')
             plt.title('Correlation Matrix:', fontsize=16)
             plt.show()
 
