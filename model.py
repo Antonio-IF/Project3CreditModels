@@ -1,29 +1,43 @@
+"""
+# -- --------------------------------------------------------------------------------------------------- -- #
+# -- project: CREDIT CARD MODEL                                                                          -- #
+# -- script: model.py : python script with model functionality                                           -- #
+# -- author: anasofiabrizuela / Antonio-IF / diegotita4 / luisrc44 / Oscar148                            -- #
+# -- license: MIT License                                                                                -- #
+# -- repository: https://github.com/Antonio-IF/Project3CreditModels                                      -- #
+# -- --------------------------------------------------------------------------------------------------- -- #
+"""
+
 import os
-import optuna
 import joblib
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import tensorflow as tf
-import matplotlib.pyplot as plt
-from sklearn.svm import SVC
-from xgboost import XGBClassifier
-from sklearn.impute import SimpleImputer
-from tensorflow.keras.optimizers import Adam
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.models import Sequential, Model
+from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Dropout, Input
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import classification_report, roc_auc_score, matthews_corrcoef, f1_score, precision_recall_curve, auc, roc_curve, confusion_matrix
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.metrics import classification_report, roc_auc_score, matthews_corrcoef, f1_score, confusion_matrix, auc, roc_curve
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from eda import ExploratoryDataAnalysis
+
+# --------------------------------------------------
 
 class CreditModel:
-    def __init__(self, data_path, model_type):
+
+    # ------------------------------
+             
+    def __init__(self, data_path, model_type, selected_columns):
         print(f"\n{'='*50}\nInitializing 'CreditModel' ({model_type})...\n{'='*50}")
-        self.data = pd.read_excel(data_path)
-        self.data = self.data[self.data['PRODUCTO'] == 'BK']
+        self.data = pd.read_excel(data_path)[selected_columns]
         self.model_type = model_type
         self.model = None
         self.X_train = None
@@ -32,36 +46,35 @@ class CreditModel:
         self.y_test = None
         self.scaler = StandardScaler()
         self.imputer = SimpleImputer(strategy='mean')
+        self.selected_columns = selected_columns
 
-    def eda(self):
-        print(f"\n{'='*50}\nPerforming Exploratory Data Analysis (EDA)...\n{'='*50}")
-        print(self.data.describe())
-        for column in ['Ingreso_Estimado', 'Egresos', 'Capacidad_Pago', 'Endeudamiento']:
-            self.data[column].hist()
-            plt.title(f'Histogram of {column}')
-            plt.show()
+    # ------------------------------
+
+    def eda(self, data_path):
+        print(f"\n{'='*50}\nPerforming 'Exploratory Data Analysis' (EDA)...\n{'='*50}")
+        data = pd.read_excel(data_path)[self.selected_columns]
+        eda_instance = ExploratoryDataAnalysis(data, target_column='ESTATUS')
+        eda_instance.perform_EDA()
+
+    # ------------------------------
 
     def dqr(self):
         print(f"\n{'='*50}\nPerforming Data Quality Review (DQR)...\n{'='*50}")
-        print("Missing values per column:")
-        print(self.data.isnull().sum())
-        print("\nData types and non-null counts:")
-        print(self.data.info())
+        DQR.perform_clean()
+        pass
 
-    def feature_engineering(self):
-        print(f"\n{'='*50}\nConducting Feature Engineering...\n{'='*50}")
-        self.data['Ratio_Ingreso_Egreso'] = self.data['Ingreso_Estimado'] / self.data['Egresos']
-        print("Feature Engineering Done: New features added.")
+    # ------------------------------
 
     def prepare_data(self):
         print(f"\n{'='*50}\nPreparing data for training...\n{'='*50}")
-        #features = ['Ingreso_Estimado', 'Egresos', 'Capacidad_Pago', 'Endeudamiento', 'Ratio_Ingreso_Egreso']
         features = ['Ingreso_Estimado', 'Egresos', 'Capacidad_Pago', 'Endeudamiento']
         X = self.data[features]
         y = self.data['ESTATUS'].map({'APROBADO': 1, 'RECHAZADO': 0})
         X_imputed = self.imputer.fit_transform(X)
         X_scaled = self.scaler.fit_transform(X_imputed)
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+    # ------------------------------
 
     def build_model(self):
         print(f"\n{'='*50}\nBuilding model...\n{'='*50}")
@@ -83,6 +96,8 @@ class CreditModel:
             self.model = Model(inputs=input_layer, outputs=output_layer)
             self.model.compile(optimizer=Adam(learning_rate=0.00001), loss='binary_crossentropy', metrics=['accuracy', 'AUC'])
 
+    # ------------------------------
+
     def train_model(self, epochs=None, batch_size=None):
         print(f"\n{'='*50}\nTraining model...\n{'='*50}")
         if self.model_type == 'neural_network':
@@ -91,6 +106,8 @@ class CreditModel:
         else:
             self.model.fit(self.X_train, self.y_train)
             return None
+
+    # ------------------------------
 
     def evaluate_model(self):
         print(f"\n{'='*50}\nEvaluating model...\n{'='*50}")
@@ -102,6 +119,8 @@ class CreditModel:
         print("* F1-Score:", np.round(f1_score(self.y_test, predictions), 6))
         print("* ROC AUC score:", np.round(roc_auc_score(self.y_test, probas), 6))
         self.plot_metrics(predictions, probas)
+
+    # ------------------------------
 
     def plot_metrics(self, predictions, probas):
         print(f"\n{'='*50}\nPlotting evaluation metrics...\n{'='*50}")
@@ -122,6 +141,8 @@ class CreditModel:
         plt.ylabel('True')
         plt.title('Confusion Matrix')
         plt.show()
+
+    # ------------------------------
 
     def save_model(self, model_directory='models'):
         print(f"\n{'='*50}\nSaving model...\n{'='*50}")
