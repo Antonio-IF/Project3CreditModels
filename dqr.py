@@ -1,100 +1,96 @@
+
 """
 # -- --------------------------------------------------------------------------------------------------- -- #
 # -- project: CREDIT CARD MODEL                                                                          -- #
-# -- script: dqr.py : python script with dqr functionality                                               -- #
+# -- script: dqr.py : python script with DQR functionality                                               -- #
 # -- author: anasofiabrizuela / Antonio-IF / diegotita4 / luisrc44 / Oscar148                            -- #
 # -- license: MIT License                                                                                -- #
 # -- repository: https://github.com/Antonio-IF/Project3CreditModels                                      -- #
 # -- --------------------------------------------------------------------------------------------------- -- #
 """
 
+# IMPORT NECESSARY LIBRARIES
 import os
-import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 # --------------------------------------------------
 
-class DQR:
+# 
+class DataQualityReview:
+    """
+    Class to perform Data Quality Review (DQR) including preprocessing, handling outliers,
+    handling missing values, encoding categorical variables, and saving the cleaned data.
+
+    Attributes:
+        data_path (str): Path to the dataset.
+        target_column (str): Name of the target column in the dataset.
+        selected_columns (list): Columns to be used in the analysis.
+        selected_columns_to_drop (list): Columns to be excluded from the analysis.
+        want_impute (str): Specifies whether missing values should be imputed.
+        fill_method (str): Method used for imputing missing values ('median', 'mean', 'mode').
+
+    Methods:
+        validate_data(data): Ensures that the data is not empty.
+        preprocess_data(): Drops unwanted columns and prepares data for further processing.
+        handle_outliers(): Identifies and handles outliers in numerical columns using IQR.
+        handle_missing_values(): Handles missing values according to specified imputation method.
+        encode_categorical(): Encodes categorical variables into numerical values and stores mappings.
+        save_cleaned_data(output_path): Saves the cleaned and processed data to a specified path.
+        perform_DQR(): Executes all steps of the data quality review process.
+    """
 
     # ------------------------------
 
-    def __init__(self, data):
+    def __init__(self, data_path, target_column, selected_columns, selected_columns_to_drop, want_impute, fill_method):
+        """
+        Initializes DataQualityReview with data, configuration for data processing, and prepares the initial dataset.
+        """
 
-        self.validate_data(data)
-        self.data = data
+        self.data = pd.read_excel(data_path)[selected_columns]
+        self.validate_data(self.data)
+        self.target_column = target_column
+        self.selected_columns = selected_columns
+        self.selected_columns_to_drop = selected_columns_to_drop
+        self.want_impute = want_impute
+        self.fill_method = fill_method
 
     # ------------------------------
 
     def validate_data(self, data):
+        """
+        Validates that the provided DataFrame is not empty, raises a ValueError if it is.
+        """
 
         if data.empty:
-            raise ValueError("DataFrame must be not empty.")
+            raise ValueError('\nDataFrame must be not empty.')
 
     # ------------------------------
 
     def preprocess_data(self):
+        """
+        Removes specified columns from the data and prints a summary of the action.
+        """
+
+        print(f"\n{'='*50}\nPreporcess data...\n{'='*50}")
 
         try:
-            self.data = self.data.drop(columns=['ID', 'Customer_ID', 'Name', 'SSN', 'Type_of_Loan'])
+            if self.selected_columns_to_drop:
+                self.data.drop(columns=self.selected_columns_to_drop, errors='ignore', inplace=True)
+            else:
+                print(f'\nNo columns to drop.')
 
         except KeyError as e:
-            print(f"Error dropping columns: {e}")
-
-    # ------------------------------
-
-    def clean_incoherent_values(self):
-
-        try:
-            replacements = {
-                'Occupation': {'_______': np.nan},
-                'Credit_Mix': {'_': np.nan},
-                'Payment_Behaviour': {'!@9#%8': np.nan}
-            }
-            self.data.replace(replacements, inplace=True)
-
-            for key in replacements.keys():
-                self.data[key] = self.data[key].fillna(self.data[key].mode().iloc[0])
-
-        except Exception as e:
-            print(f"Error cleaning incoherent values: {e}")
-
-    # ------------------------------
-
-    def convert_time_to_numeric(self):
-
-        try:
-            if self.data['Credit_History_Age'].dtype != 'object':
-                self.data['Credit_History_Age'] = self.data['Credit_History_Age'].astype(str)    
-
-            years = self.data['Credit_History_Age'].str.extract(r'(\d+)\sYears').astype(float)
-            months = self.data['Credit_History_Age'].str.extract(r'(\d+)\sMonths').astype(float)
-            
-            self.data['Credit_History_Age'] = years + (months / 12)
-
-        except Exception as e:
-            print(f"Error converting time to numeric: {e}")
-
-    # ------------------------------
-
-    def clean_data_types(self):
-
-        try:
-            object_to_numeric_columns = ['Month', 'Occupation', 'Credit_Mix', 'Payment_of_Min_Amount', 'Payment_Behaviour', 'Credit_Score']
-
-            non_numeric_columns = self.data.columns[~self.data.columns.isin(object_to_numeric_columns)]
-
-            for column in non_numeric_columns:
-                if self.data[column].dtype == 'object':
-                    self.data[column] = self.data[column].str.replace('_', '')
-                    self.data[column] = pd.to_numeric(self.data[column], errors='coerce')
-
-        except Exception as e:
-            print(f"Error cleaning data types: {e}")
+            print(f'\nError dropping columns: {e}')
 
     # ------------------------------
 
     def handle_outliers(self):
+        """
+        Handles outliers by clipping values outside 1.5 times the IQR from the Q1 and Q3 of each numerical column.
+        """
+
+        print(f"\n{'='*50}\nHandle outliers...\n{'='*50}")
 
         try:
             for col in self.data.select_dtypes(include=['number']).columns:
@@ -107,93 +103,90 @@ class DQR:
                 self.data[col] = self.data[col].clip(lower=lower_bound, upper=upper_bound)
 
         except Exception as e:
-            print(f"Error handling outliers: {e}")
+            print(f'\nError handling outliers: {e}')
 
     # ------------------------------
 
     def handle_missing_values(self):
+        """
+        Handles missing values either by dropping rows where all columns are NaN or imputing based on a specified method.
+        """
+
+        print(f"\n{'='*50}\nHandle missing values...\n{'='*50}")
 
         try:
-            for column in self.data.columns:
-                if self.data[column].dtype in ['float64', 'int64']:
-                    self.data[column] = self.data[column].fillna(self.data[column].median())
+            self.data.dropna(how='all', subset=[col for col in self.data.columns if col != self.target_column], inplace=True)
 
-                elif self.data[column].dtype == 'object':
-                    self.data[column] = self.data[column].fillna(self.data[column].mode().iloc[0])
+            if self.want_impute.lower() == 'yes':
+                for column in self.data.columns:
+                    if column != self.target_column:
+                        if self.data[column].dtype in ['float64', 'int64'] and self.fill_method == 'median':
+                            self.data[column].fillna(self.data[column].median(), inplace=True)
+
+                        elif self.data[column].dtype in ['float64', 'int64'] and self.fill_method == 'mean':
+                            self.data[column].fillna(self.data[column].median(), inplace=True)
+
+                        elif self.data[column].dtype == 'object':
+                            self.data[column].fillna(self.data[column].mode()[0], inplace=True)
 
         except Exception as e:
-            print(f"Error handling missing values: {e}")
+            print(f'\nError handling missing values: {e}')
             
     # ------------------------------
 
     def encode_categorical(self):
+        """
+        Encodes categorical variables into numerical values using LabelEncoder and stores mappings.
+        """
+
+        print(f"\n{'='*50}\nEncoding categorical...\n{'='*50}")
 
         try:
-            encoder = LabelEncoder()
+            self.label_encoders = {}
+
             for column in self.data.select_dtypes(include=['object']).columns:
-                self.data[column] = encoder.fit_transform(self.data[column].astype(str))
+                if column != self.target_column:
+                    encoder = LabelEncoder()
+                    self.data[column] = encoder.fit_transform(self.data[column].astype(str))
+                    self.label_encoders[column] = dict(zip(encoder.classes_, encoder.transform(encoder.classes_)))
+                    print(f'\n{self.label_encoders}')
 
         except Exception as e:
-            print(f"Error encoding categorical variables: {e}")
+            print(f'\nError encoding categorical variables: {e}')
 
     # ------------------------------
 
-    def replace_negatives(self):
+    def save_cleaned_data(self, output_path='data/clean_data.xlsx'):
+        """
+        Saves the cleaned data to a specified file path after creating necessary directories.
+        """
 
-        columns_to_check = [
-            "Age",
-            "Num_Bank_Accounts",
-            "Num_Credit_Card",
-            "Num_of_Loan",
-            "Delayd_from_due_date",
-            "Num_of_Delayed_Payment",
-            "Changed_Credit_Limit",
-            "Monthly_Balance"
-        ]
+        print(f"\n{'='*50}\nSaving cleaned data...\n{'='*50}")
 
         try:
-            for col in columns_to_check:
-                if col in self.data.columns:
-                    median_value = self.data[col].median()
-                    self.data[col] = self.data[col].where(self.data[col] >= 0, median_value)
+            model_directory = os.path.dirname(output_path)
+            
+            if not os.path.exists(model_directory):
+                os.makedirs(model_directory)
+                print(f"\n¡Created directory: '{model_directory}'!\n\n{'-'*50}")
+
+            self.data.to_excel(output_path, index=False)
+            print(f"\n¡Cleaned data saved: '{output_path}'!")
 
         except Exception as e:
-            print(f"Error replacing negative values: {e}")
+            print(f'\nError saving cleaned data: {e}')
 
     # ------------------------------
 
-    def postprocess_data(self):
-
-        try:
-            int_columns = ['Age', 'Num_Bank_Accounts', 'Num_Credit_Card', 'Num_of_Loan',
-                        'Delay_from_due_date', 'Num_of_Delayed_Payment', 'Num_Credit_Inquiries']
-            self.data[int_columns] = self.data[int_columns].astype('int')
-
-            self.data = self.data.drop_duplicates()
-
-        except Exception as e:
-            print(f"Error during postprocessing: {e}")
-
-    # ------------------------------
-
-    def perform_clean(self):
+    def perform_DQR(self):
+        """
+        Executes the entire data quality review process in sequence.
+        """
 
         self.preprocess_data()
-        self.clean_incoherent_values()
-        self.convert_time_to_numeric()
-        self.clean_data_types()
         self.handle_outliers()
         self.handle_missing_values()
         self.encode_categorical()
-        self.replace_negatives()
-        self.postprocess_data()
-
-        output_path = 'data/clean_data.xlsx'
-
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-        self.data.to_excel(output_path, index=False)
-
-        print(f"Cleaned data saved to {output_path}")
+        self.save_cleaned_data()
 
         return self.data
