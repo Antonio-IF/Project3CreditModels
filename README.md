@@ -8,7 +8,9 @@ To set up and run this project, follow these steps:
 
 1. **Clone the repository:**
 
-`git clone https://github.com/Antonio-IF/Project3CreditModels.git`
+```
+git clone https://github.com/Antonio-IF/Project3CreditModels.git
+```
 
 
 2. **Create and activate a virtual environment:**
@@ -27,7 +29,9 @@ To set up and run this project, follow these steps:
 
 3. **Install the necessary dependencies:**
 
-`pip install -r requirements.txt`
+```
+pip install -r requirements.txt
+```
 
 
 ## Usage
@@ -35,7 +39,9 @@ To execute the model and see the predictions, follow these steps:
 
 1. Navigate to the project directory:
 
-`cd Project3CreditModels`
+```
+cd Project3CreditModels
+```
 
 
 2. Run the main script:
