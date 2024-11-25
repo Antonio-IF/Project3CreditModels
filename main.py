@@ -49,10 +49,17 @@ if __name__ == '__main__':
     data_quality_review.perform_DQR()
     clean_data_path = 'data/clean_data.xlsx'
 
-    model_type = 'neural_network'   # OPTIONS: 'logistic_regression', 'random_forest', 'xgboost', 'neural_network'
+    use_clean_data = 'no'
+    model_type = 'logistic_regression'   # OPTIONS: 'logistic_regression', 'random_forest', 'xgboost', 'neural_network'
 
-    credit_card_model = CreditCardModel(clean_data_path, target_column, selected_columns, selected_columns_to_drop, model_type)
-    credit_card_model.eda(clean_data_path)
+    if use_clean_data == 'yes':
+        credit_card_model = CreditCardModel(clean_data_path, target_column, selected_columns, selected_columns_to_drop, model_type)
+        credit_card_model.eda(clean_data_path)
+
+    else:
+        credit_card_model = CreditCardModel(data_path, target_column, selected_columns, selected_columns_to_drop, model_type)
+        credit_card_model.eda(data_path)
+
     credit_card_model.prepare_data()
     credit_card_model.build_model()
 
