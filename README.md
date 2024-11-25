@@ -53,7 +53,7 @@ cd Project3CreditModels
 More details about the code structure and functionalities are available in the source code comments. Each script within the project is thoroughly documented to explain the functionalities of each function and how data is utilized.
 
 ## Credits
-This project was developed by Antonio-IF along with collaborators such as anasofiabrizuela, diegotita4, and luisrc44.
+This project was developed by Antonio-IF along with collaborators such as anasofiabrizuela, diegotita4, luisrc44, and Oscar148.
 
 ## License
 This project is licensed under the MIT License - see the `LICENSE.md` file for more details.
@@ -62,4 +62,10 @@ This project is licensed under the MIT License - see the `LICENSE.md` file for m
 This project is currently in development. Future updates will include enhancements in model accuracy and user interface improvements for easier deployment in commercial applications.
 
 ## Contact
-For more information, contact Antonio-IF at the following email: antonio@ifexample.com
+For more information, contact:
+
+- Antonio-IF at the following email: if728370@iteso.mx
+- anasofiabrizuela at the following email: ana.brizuela@iteso.mx
+- diegotita4 at the following email: if728356@iteso.mx
+- luisrc44 at the following email: luis.robles@iteso.mx
+- Oscar148 at the following email: oscar.alvarado@iteso.mx
